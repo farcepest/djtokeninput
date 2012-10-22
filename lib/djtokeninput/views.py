@@ -2,30 +2,48 @@
 
 import json
 from django import http
-from django.contrib.contenttypes.models import ContentType
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ImproperlyConfigured
+
+try:
+    from django.settings import DJTOKENINPUT_LOOKUPS as lookups
+except ImportError:
+    raise ImproperlyConfigured("DJTOKENINPUT_LOOKUPS is not defined in your settings")
 
 
-def _tokens(query_set, keys=("id", "name")):
-  return map(
-    lambda v: dict(zip(keys, v)),
-    query_set.values_list(*keys))
+def lookup(request, channel):
+    query = request.GET.get("q", "")
+    if not query:
+        return http.HttpResponse(
+            json.dumps([]),
+            content_type = "application/json",
+        )
 
-def search(req, app_label, model):
-  content_type = get_object_or_404(ContentType, app_label=app_label, model=model)
-  model = content_type.model_class()
+    try:
+        lookup = lookups[channel]
+    except KeyError:
+        raise http.Http404
 
-  if hasattr(model, "search"):
-    if "q" in req.GET:
-      query_set = model.search(req.GET["q"])
-      tokens = _tokens(query_set)
+    if not callable(lookup):
+        try:
+            mod, cls = lookup.rsplit('.', 1)
+            lookup_module = __import__(mod, {}, {}, [''])
+        except ImportError:
+            raise ImproperlyConfigured("DJTOKENINPUT_LOOKUP channel '%s' lookup module '%s' couldn't be imported" % (channel, mod))
 
-    else:
-      tokens = []
+        try:
+            lookup_cls = getattr(lookup_module, cls)
+        except AttributeError:
+            raise ImproperlyConfigured("DJTOKENINPUT_LOOKUP channel '%s' couldn't import lookup class '%s' from '%s'" % (channel, cls, mod))
+
+        if not callable(lookup_cls):
+            raise ImproperlyConfigured("DJTOKENINPUT_LOOKUP channel '%s' does not point to a callable object or class" % channel)
+
+        lookup = lookups[channel] = lookup_cls # may be evil, probably should use a real cache
+
+    results = lookup(request, query)
 
     return http.HttpResponse(
-      json.dumps(tokens),
-      content_type="application/json")
+        results.as_json(),
+        content_type = "application/json",
+    )
 
-  else:
-    raise http.Http404
