@@ -18,6 +18,9 @@ class TokenWidget(forms.TextInput):
       "js/djtokeninput.js"
     )
 
+  search_url = None
+  search_view = None
+
   def __init__(self, attrs=None, **kwargs):
     super(TokenWidget, self).__init__(attrs)
     self.settings = self._normalize(kwargs)
@@ -47,7 +50,9 @@ class TokenWidget(forms.TextInput):
     flat_value = ",".join(map(unicode, value or []))
     settings = copy.copy(self.settings)
 
-    attrs["data-search-url"] = reverse(self.search_view)
+    if not self.search_url and self.search_view:
+        self.search_url = reverse(self.search_view)
+    attrs["data-search-url"] = self.search_url
 
     attrs["class"] = self._class_name(
       attrs.get("class"), "tokeninput")

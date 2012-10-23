@@ -5,7 +5,7 @@ from djtokeninput.widgets import TokenWidget
 
 
 class TokenField(forms.ModelMultipleChoiceField):
-  kwargs_for_widget = ("search_view",)
+  kwargs_for_widget = ("search_view","search_url")
   widget = TokenWidget
 
   @staticmethod
