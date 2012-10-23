@@ -2,6 +2,8 @@
 
 from django.shortcuts import render_to_response
 from app.forms import ExampleForm
+from djtokeninput.views import JSONSearchView
+from app.models import Tag
 
 
 def home(req):
@@ -10,3 +12,12 @@ def home(req):
       "form": ExampleForm()
     }
   )
+
+
+class SearchTags(JSONSearchView):
+
+    model = Tag
+
+    def filter_queryset(self, qs, query):
+        return qs.filter(name__istartswith=query)
+
