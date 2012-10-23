@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 import json
-from django import http
+from django.http import Http404, HttpResponse
+from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
-
 
 class JSONLookupView(MultipleObjectMixin, View):
 
     query_parameter = "q"
     min_query_length = 1
-    response_class = http.HttpResponse
+    response_class = HttpResponse
     allow_empty = True
 
     def filter_queryset(self, qs, query):
