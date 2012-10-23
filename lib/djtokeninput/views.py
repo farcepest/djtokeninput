@@ -4,12 +4,6 @@ import json
 from django import http
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
-from django.core.exceptions import ImproperlyConfigured
-
-try:
-    from django.settings import DJTOKENINPUT_LOOKUPS as lookups
-except ImportError:
-    raise ImproperlyConfigured("DJTOKENINPUT_LOOKUPS is not defined in your settings")
 
 
 class JSONLookupView(MultipleObjectMixin, View):
