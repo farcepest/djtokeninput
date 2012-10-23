@@ -6,7 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
 
-class JSONLookupView(MultipleObjectMixin, View):
+class JSONSearchView(MultipleObjectMixin, View):
 
     query_parameter = "q"
     min_query_length = 1
@@ -29,7 +29,7 @@ class JSONLookupView(MultipleObjectMixin, View):
         return self.render_to_response(context)
 
     def json_filter(self, context):
-        return ( dict(id=o.id, name=unicode(o)) for o in context.object_list )
+        return [ dict(id=o.id, name=unicode(o)) for o in context['object_list'] ]
 
     def render_to_response(self, context):
         return self.response_class(
