@@ -46,6 +46,9 @@ class TokenWidget(forms.TextInput):
   def _class_name(value):
     return value.replace(" ", "-")
 
+  def render_value(self, value):
+      return unicode(value)
+
   def render(self, name, value, attrs=None):
     flat_value = ",".join(map(unicode, value or []))
     settings = copy.copy(self.settings)
@@ -59,7 +62,7 @@ class TokenWidget(forms.TextInput):
 
     if value is not None:
       settings["prePopulate"] = [
-        {"id": pk, "name": unicode(self.choices.queryset.get(pk=pk))}
+        {"id": pk, "name": self.render_value(self.choices.queryset.get(pk=pk))}
         for pk in value
       ]
 
