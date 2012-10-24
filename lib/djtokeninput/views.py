@@ -86,24 +86,24 @@ class JSONSearchView(MultipleObjectMixin, View):
         context = self.get_context_data(object_list=self.object_list)
         return self.render_to_response(context)
 
-    def render_value(self, value):
+    def render_object(self, obj):
         """
         Render an object, returning a suitable representation for display in the client.
         By default, the value is escaped. If you need to generate raw HTML, override this
         method.
 
-        :param value:
+        :param obj:
             object to render
-        :type value:
+        :type obj:
             object
         :return:
             rendered object
         :rtype:
             unicode
         """
-        return mark_for_escaping(value)
+        return mark_for_escaping(obj)
 
-    def json_filter(self, context):
+    def render_objects(self, object_list):
         """
         Filters and converts the context into a sequence of dicts, with elements of
         id and name. id contains the object id. name contains rendered version of the
@@ -111,20 +111,20 @@ class JSONSearchView(MultipleObjectMixin, View):
         to the client as part of a JSON stream, you should escape them appropriately. You can
         return HTML, if desired. Only object_list from the context is converted by default.
 
-        :param context:
-            template context data
-        :type context:
-            dict
+        :param object_list:
+            sequence of objects to convert
+        :type object_list:
+            list(object)
         :return:
             sequence of dicts
         :rtype:
             [dict, ...]
         """
-        return [ dict(id=o.id, name=self.render_value(o)) for o in context['object_list'] ]
+        return [ dict(id=o.id, name=self.render_object(o)) for o in object_list ]
 
     def render_to_response(self, context):
         """
-        Renders the context data (filtered through json_filter()) as a JSON response.
+        Renders the context data (filtered through render_objects()) as a JSON response.
 
         :param context:
             context data
@@ -136,7 +136,7 @@ class JSONSearchView(MultipleObjectMixin, View):
             HttpResponse
         """
         return self.response_class(
-            json.dumps(self.json_filter(context)),
+            json.dumps(self.render_objects(context['object_list'])),
             content_type = "application/json",
         )
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from django.utils.safestring import mark_for_escaping
 
 import re
 import json
@@ -47,8 +48,40 @@ class TokenWidget(forms.TextInput):
     def _class_name(value):
         return value.replace(" ", "-")
 
-    def render_value(self, value):
-        return unicode(value)
+    def render_object(self, obj):
+        """
+        Render an object, returning a suitable representation for display in the client.
+        By default, the value is escaped. If you need to generate raw HTML, override this
+        method.
+
+        :param obj:
+            object to render
+        :type obj:
+            object
+        :return:
+            rendered object
+        :rtype:
+            unicode
+        """
+        return mark_for_escaping(obj)
+
+    def render_objects(self, object_list):
+        """
+        Filters and converts the context into a sequence of dicts, with elements of
+        id and name. id contains the object id. name contains rendered version of the
+        object. This value is rendered by render_value(). Since these values are being returned
+        to the client as part of a HTML document, you should escape them appropriately.
+
+        :param object_list:
+            sequence of objects to convert
+        :type object_list:
+            list(object)
+        :return:
+            sequence of dicts
+        :rtype:
+            [dict, ...]
+        """
+        return [ dict(id=o.id, name=self.render_object(o)) for o in object_list ]
 
     def render(self, name, value, attrs=None):
         flat_value = ",".join(map(unicode, value or []))
@@ -62,11 +95,8 @@ class TokenWidget(forms.TextInput):
             attrs.get("class"), "tokeninput")
 
         if value is not None:
-            settings["prePopulate"] = [
-                {"id": obj.id, "name": self.render_value(obj)}
-              for obj in self.choices.queryset.filter(pk__in=value)
-            ]
-
+            object_list = self.choices.queryset.filter(pk__in=value)
+            settings["prePopulate"] = self.render_objects(object_list)
         attrs["data-settings"] = json.dumps(settings)
         return super(TokenWidget, self).render(name, flat_value, attrs)
 
