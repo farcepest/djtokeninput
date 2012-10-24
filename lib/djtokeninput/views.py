@@ -33,7 +33,7 @@ class JSONSearchView(MultipleObjectMixin, View):
         query_length = len(self.query.strip())
         max_results = self.min_query_length*query_length*self.queryset_limit_factor
         if self.queryset_limit_max:
-            return max(max_results, self.queryset_limit_max)
+            return min(max_results, self.queryset_limit_max)
         else:
             return max_results
 
