@@ -2,6 +2,7 @@
 
 import json
 from django.http import Http404, HttpResponse
+from django.utils.safestring import mark_for_escaping
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from django.views.generic.list import MultipleObjectMixin
@@ -36,13 +37,39 @@ class JSONSearchView(MultipleObjectMixin, View):
             return max_results
 
     def limit_queryset(self, qs):
+        """
+        Apply result size limits to the queryset. get_max_results() is used to determine the maximum
+        number of results to return. If 0/None/False, the entire result set is returned.
+
+        :param qs:
+            a queryset
+        :type qs:
+            QuerySet
+        :return:
+            limited queryset
+        :rtype:
+            QuerySet
+        """
         M = self.get_max_results()
         if M:
-            return qs[:]
+            return qs[:M]
         else:
             return qs
 
     def filter_queryset(self, qs):
+        """
+        Filter the result set based on the query attribute. By default, this implementation
+        uses name__istartswith. Override this method if you need more complex behavior.
+
+        :param qs:
+            queryset to filter
+        :type qs:
+            QuerySet
+        :return:
+            filtered queryset
+        :rtype:
+            QuerySet
+        """
         return qs.filter(name__istartswith=self.query)
 
     def get(self, request, *args, **kwargs):
@@ -58,10 +85,55 @@ class JSONSearchView(MultipleObjectMixin, View):
         context = self.get_context_data(object_list=self.object_list)
         return self.render_to_response(context)
 
+    def render_value(self, value):
+        """
+        Render an object, returning a suitable representation for display in the client.
+        By default, the value is escaped. If you need to generate raw HTML, override this
+        method.
+
+        :param value:
+            object to render
+        :type value:
+            object
+        :return:
+            rendered object
+        :rtype:
+            unicode
+        """
+        return mark_for_escaping(value)
+
     def json_filter(self, context):
-        return [ dict(id=o.id, name=unicode(o)) for o in context['object_list'] ]
+        """
+        Filters and converts the context into a sequence of dicts, with elements of
+        id and name. id contains the object id. name contains rendered version of the
+        object. This value is rendered by render_value(). Since these values are being returned
+        to the client as part of a JSON stream, you should escape them appropriately. You can
+        return HTML, if desired. Only object_list from the context is converted by default.
+
+        :param context:
+            template context data
+        :type context:
+            dict
+        :return:
+            sequence of dicts
+        :rtype:
+            [dict, ...]
+        """
+        return [ dict(id=o.id, name=self.render_value(o)) for o in context['object_list'] ]
 
     def render_to_response(self, context):
+        """
+        Renders the context data (filtered through json_filter()) as a JSON response.
+
+        :param context:
+            context data
+        :type context:
+            dict
+        :return:
+            response
+        :rtype:
+            HttpResponse
+        """
         return self.response_class(
             json.dumps(self.json_filter(context)),
             content_type = "application/json",
