@@ -14,7 +14,7 @@ class TokenWidget(forms.TextInput):
     }
 
     js = (
-      "js/jquery-tokeninput-1.6.0-min.js",
+      "js/jquery.tokeninput.js",
       "js/djtokeninput.js"
     )
 

@@ -19,6 +19,7 @@ class JSONSearchView(MultipleObjectMixin, View):
     def get_max_results(self):
         """
         Computes the upper bound for the size of the result set.
+
         :return:
             Returns the maximum number of results allowed for this particular query.
             This is computed as:
