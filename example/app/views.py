@@ -16,8 +16,7 @@ def home(req):
 
 class SearchTags(JSONSearchView):
 
-    model = Tag
+    queryset = Tag.objects.all()
 
-    def filter_queryset(self, qs, query):
-        return qs.filter(name__istartswith=query)
+
 
