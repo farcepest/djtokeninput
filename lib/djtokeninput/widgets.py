@@ -63,8 +63,8 @@ class TokenWidget(forms.TextInput):
 
         if value is not None:
             settings["prePopulate"] = [
-                {"id": pk, "name": self.render_value(self.choices.queryset.get(pk=pk))}
-              for pk in value
+                {"id": obj.id, "name": self.render_value(obj)}
+              for obj in self.choices.queryset.filter(pk__in=value)
             ]
 
         attrs["data-settings"] = json.dumps(settings)
