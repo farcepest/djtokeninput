@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
 from django import forms
-from djtokeninput.widgets import TokenWidget
+from djtokeninput.widgets import TokenWidget, MultiTokenWidget
 
 
-class TokenField(forms.ModelMultipleChoiceField):
+class TokenFieldMixIn(object):
 
-    kwargs_for_widget = ("search_view", "search_url", "render_object")
-    widget = TokenWidget
+    kwargs_for_widget = ("search_view", "search_url", "render_object", "token_limit")
 
     @staticmethod
     def _class_name(value):
@@ -20,7 +19,18 @@ class TokenField(forms.ModelMultipleChoiceField):
             if name in kwargs:
                 widget_attrs[name] = kwargs.pop(name)
 
-        super(TokenField, self).__init__(queryset, *args, **kwargs)
+        super(TokenFieldMixIn, self).__init__(queryset, *args, **kwargs)
 
         for name in widget_attrs:
             setattr(self.widget, name, widget_attrs[name])
+
+
+class MultiTokenField(TokenFieldMixIn, forms.ModelMultipleChoiceField):
+
+    widget = MultiTokenWidget
+
+
+class TokenField(TokenFieldMixIn, forms.ModelChoiceField):
+
+    widget = TokenWidget
+

@@ -8,7 +8,7 @@ from django import forms
 from django.core.urlresolvers import reverse
 
 
-class TokenWidget(forms.TextInput):
+class TokenWidgetBase(forms.TextInput):
 
     class Media:
         css = {
@@ -24,7 +24,7 @@ class TokenWidget(forms.TextInput):
     search_view = None
 
     def __init__(self, attrs=None, **kwargs):
-        super(TokenWidget, self).__init__(attrs)
+        super(TokenWidgetBase, self).__init__(attrs)
         self.settings = self._normalize(kwargs)
 
     @classmethod
@@ -84,6 +84,43 @@ class TokenWidget(forms.TextInput):
         return [ dict(id=o.id, name=self.render_object(o)) for o in object_list ]
 
     def render(self, name, value, attrs=None):
+        settings = copy.copy(self.settings)
+
+        if not self.search_url and self.search_view:
+            self.search_url = reverse(self.search_view)
+        attrs["data-search-url"] = self.search_url
+
+        attrs["class"] = self._class_name(
+            attrs.get("class"), "tokeninput")
+
+        if value or value == 0:
+            object_list = self.choices.queryset.filter(pk=value)
+            settings["prePopulate"] = self.render_objects(object_list)
+        attrs["data-settings"] = json.dumps(settings)
+        return super(TokenWidgetBase, self).render(name, value, attrs)
+
+    @staticmethod
+    def _class_name(class_name=None, extra=None):
+        return " ".join(filter(None, [class_name, extra]))
+
+
+class TokenWidget(TokenWidgetBase):
+
+    def __init__(self, attrs=None, **kwargs):
+        super(TokenWidget, self).__init__(attrs)
+        self.settings['tokenLimit'] = 1
+
+
+class MultiTokenWidget(TokenWidgetBase):
+
+    def value_from_datadict(self, data, files, name):
+        values = data.get(name, "").split(",")
+        return self.clean_keys(values)
+
+    def clean_keys(self, values):
+        return [int(x) for x in values if x.strip().isdigit()]
+
+    def render(self, name, value, attrs=None):
         flat_value = ",".join(map(unicode, value or []))
         settings = copy.copy(self.settings)
 
@@ -98,15 +135,4 @@ class TokenWidget(forms.TextInput):
             object_list = self.choices.queryset.filter(pk__in=value)
             settings["prePopulate"] = self.render_objects(object_list)
         attrs["data-settings"] = json.dumps(settings)
-        return super(TokenWidget, self).render(name, flat_value, attrs)
-
-    @staticmethod
-    def _class_name(class_name=None, extra=None):
-        return " ".join(filter(None, [class_name, extra]))
-
-    def value_from_datadict(self, data, files, name):
-        values = data.get(name, "").split(",")
-        return self.clean_keys(values)
-
-    def clean_keys(self, values):
-        return [int(x) for x in values if x.strip().isdigit()]
+        return super(TokenWidgetBase, self).render(name, flat_value, attrs)
