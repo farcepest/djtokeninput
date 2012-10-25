@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from itertools import islice
 
 import json
 from django.http import Http404, HttpResponse
@@ -15,6 +16,8 @@ class JSONSearchView(MultipleObjectMixin, View):
     queryset_limit_max = 50
     response_class = HttpResponse
     allow_empty = True
+    object_permission = None
+    user_permission = None
 
     def get_max_results(self):
         """
@@ -73,12 +76,47 @@ class JSONSearchView(MultipleObjectMixin, View):
         """
         return qs.filter(name__istartswith=self.query)
 
+    def check_object_perm(self, qs):
+        """
+        Filters objects for which the user has a certain permission (user_permission), if set.
+        This is likely to be relatively expensive.
+
+        :param qs:
+            objects to be authorized
+        :type qs:
+            QuerySet
+        :return:
+            authorized objects for the user
+        :rtype:
+            QuerySet
+        """
+        perm = self.object_permission
+        if perm:
+            # The queryset at this point has already been filtered by the
+            # query string. Since we have to check each object in the
+            # queryset for permissions, it seems better to go back to
+            # original pre-filtered query, and re-filter based on the object
+            # ids of the authorized objects. To avoid checking objects that
+            # fall outsize the result size limit, we test the permissions in
+            # a generate which is further sliced. It'll slice the queryset
+            # after this, but I think that's harmless.
+            user = self.request.user
+            object_list = ( obj.id for obj in qs if user.has_perm(perm, obj) )
+            M = self.get_max_results()
+            qs = self.get_queryset().filter(pk__in=islice(object_list, M))
+        return qs
+
     def get(self, request, *args, **kwargs):
         self.query = request.GET.get(self.query_parameter, "")
-        object_list = self.get_queryset()
-        object_list = self.filter_queryset(object_list)
-        object_list = self.limit_queryset(object_list)
-        self.object_list = object_list
+        perm = self.user_permission
+        qs = self.get_queryset()
+        if not perm or request.user.has_perm(perm):
+            qs = self.filter_queryset(qs)
+            qs = self.check_object_perm(qs)
+            qs = self.limit_queryset(qs)
+        else:
+            qs = qs.none()
+        self.object_list = qs
         allow_empty = self.get_allow_empty()
         if not allow_empty and len(self.object_list) == 0:
             raise Http404(_(u"Empty list and '%(class_name)s.allow_empty' is False.")
