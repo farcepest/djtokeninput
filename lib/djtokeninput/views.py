@@ -2,6 +2,8 @@
 from itertools import islice
 
 import json
+from operator import or_
+from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.utils.safestring import mark_for_escaping
 from django.utils.translation import ugettext_lazy as _
@@ -11,6 +13,7 @@ from django.views.generic.list import MultipleObjectMixin
 class JSONSearchView(MultipleObjectMixin, View):
 
     query_parameter = "q"
+    search_fields = ["^name"]
     min_query_length = 1
     queryset_limit_factor = 10
     queryset_limit_max = 50
@@ -67,9 +70,12 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def filter_queryset(self, qs):
         """
-        Filter the result set based on the query attribute. By default,
-        this implementation uses name__istartswith. Override this method if
-        you need more complex behavior.
+        Filter the result set based on the query attribute. The search_field
+        attribute defines how the search is performed, in the same way that
+        is used in the Django admin_. By default, this is ["^name"].
+        Override this method if you need more complex behavior.
+
+        _admin: https://docs.djangoproject.com/en/1.4/ref/contrib/admin/#modeladmin-options
 
         :param qs:
             queryset to filter
@@ -80,7 +86,25 @@ class JSONSearchView(MultipleObjectMixin, View):
         :rtype:
             QuerySet
         """
-        return qs.filter(name__istartswith=self.query)
+        # Borrowed from the django admin for compatibility :)
+        # Apply keyword searches.
+        def construct_search(field_name):
+            if field_name.startswith('^'):
+                return "%s__istartswith" % field_name[1:]
+            elif field_name.startswith('='):
+                return "%s__iexact" % field_name[1:]
+            elif field_name.startswith('@'):
+                return "%s__search" % field_name[1:]
+            else:
+                return "%s__icontains" % field_name
+
+        orm_lookups = [construct_search(str(search_field))
+                        for search_field in self.search_fields]
+        for word in self.query.strip().split():
+            or_queries = [Q(**{orm_lookup: word})
+                          for orm_lookup in orm_lookups]
+        qs = qs.filter(reduce(or_, or_queries))
+        return qs
 
     def check_object_perm(self, qs):
         """
