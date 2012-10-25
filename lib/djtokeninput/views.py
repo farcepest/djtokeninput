@@ -24,12 +24,16 @@ class JSONSearchView(MultipleObjectMixin, View):
         Computes the upper bound for the size of the result set.
 
         :return:
-            Returns the maximum number of results allowed for this particular query.
-            This is computed as:
-                (length of query string)*(minimum query length)*(queryset limit factor)
+            Returns the maximum number of results allowed for this particular
+            query. This is computed as:
+
+                (length of query string)*(minimum query length)*(queryset
+                limit factor)
+
             i.e. longer query strings allow for a longer result set.
-            queryset_limit_max is the absolute upper limit, if set to a non-False value.
-            Note that an empty query string (length 0) generates a limit of 0.
+            queryset_limit_max is the absolute upper limit,
+            if set to a non-False value. Note that an empty query string (
+            length 0) generates a limit of 0.
         :rtype:
             int
         """
@@ -42,8 +46,9 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def limit_queryset(self, qs):
         """
-        Apply result size limits to the queryset. get_max_results() is used to determine the maximum
-        number of results to return. If 0/None/False, the entire result set is returned.
+        Apply result size limits to the queryset. get_max_results() is used
+        to determine the maximum number of results to return. If
+        0/None/False, the entire result set is returned.
 
         :param qs:
             a queryset
@@ -62,8 +67,9 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def filter_queryset(self, qs):
         """
-        Filter the result set based on the query attribute. By default, this implementation
-        uses name__istartswith. Override this method if you need more complex behavior.
+        Filter the result set based on the query attribute. By default,
+        this implementation uses name__istartswith. Override this method if
+        you need more complex behavior.
 
         :param qs:
             queryset to filter
@@ -78,8 +84,8 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def check_object_perm(self, qs):
         """
-        Filters objects for which the user has a certain permission (user_permission), if set.
-        This is likely to be relatively expensive.
+        Filters objects for which the user has a certain permission (
+        user_permission), if set. This is likely to be relatively expensive.
 
         :param qs:
             objects to be authorized
@@ -126,9 +132,9 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def render_object(self, obj):
         """
-        Render an object, returning a suitable representation for display in the client.
-        By default, the value is escaped. If you need to generate raw HTML, override this
-        method.
+        Render an object, returning a suitable representation for display in
+        the client. By default, the value is escaped. If you need to generate
+        raw HTML, override this method.
 
         :param obj:
             object to render
@@ -143,11 +149,13 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def render_objects(self, object_list):
         """
-        Filters and converts the context into a sequence of dicts, with elements of
-        id and name. id contains the object id. name contains rendered version of the
-        object. This value is rendered by render_value(). Since these values are being returned
-        to the client as part of a JSON stream, you should escape them appropriately. You can
-        return HTML, if desired. Only object_list from the context is converted by default.
+        Filters and converts the context into a sequence of dicts,
+        with elements of id and name. id contains the object id. name
+        contains rendered version of the object. This value is rendered by
+        render_value(). Since these values are being returned to the client
+        as part of a JSON stream, you should escape them appropriately. You
+        can return HTML, if desired. Only object_list from the context is
+        converted by default.
 
         :param object_list:
             sequence of objects to convert
@@ -162,7 +170,8 @@ class JSONSearchView(MultipleObjectMixin, View):
 
     def render_to_response(self, context):
         """
-        Renders the context data (filtered through render_objects()) as a JSON response.
+        Renders the context data (filtered through render_objects()) as a
+        JSON response.
 
         :param context:
             context data
