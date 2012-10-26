@@ -107,7 +107,7 @@ class TokenWidgetBase(forms.TextInput):
 class TokenWidget(TokenWidgetBase):
 
     def __init__(self, attrs=None, **kwargs):
-        super(TokenWidget, self).__init__(attrs)
+        super(TokenWidget, self).__init__(attrs, **kwargs)
         self.settings['tokenLimit'] = 1
 
 
@@ -135,4 +135,4 @@ class MultiTokenWidget(TokenWidgetBase):
             object_list = self.choices.queryset.filter(pk__in=value)
             settings["prePopulate"] = self.render_objects(object_list)
         attrs["data-settings"] = json.dumps(settings)
-        return super(TokenWidgetBase, self).render(name, flat_value, attrs)
+        return super(MultiTokenWidget, self).render(name, flat_value, attrs)
