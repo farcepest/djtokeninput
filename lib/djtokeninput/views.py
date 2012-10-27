@@ -103,7 +103,7 @@ class JSONSearchView(MultipleObjectMixin, View):
         for word in self.query.strip().split():
             or_queries = [Q(**{orm_lookup: word})
                           for orm_lookup in orm_lookups]
-        qs = qs.filter(reduce(or_, or_queries))
+            qs = qs.filter(reduce(or_, or_queries))
         return qs
 
     def check_object_perm(self, qs):

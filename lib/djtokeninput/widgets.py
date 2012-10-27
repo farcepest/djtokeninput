@@ -42,6 +42,7 @@ class TokenWidgetBase(forms.TextInput):
 
     search_url = None
     search_view = None
+    render_object = None
 
     def __init__(self, attrs=None, **kwargs):
         super(TokenWidgetBase, self).__init__(attrs)
@@ -64,7 +65,7 @@ class TokenWidgetBase(forms.TextInput):
     def _camelcase(s):
         return re.sub("_(.)", lambda m: m.group(1).capitalize(), s)
 
-    def render_object(self, obj):
+    def default_render_object(self, obj):
         """
         Render an object, returning a suitable representation for display in the client.
         By default, the value is escaped. If you need to generate raw HTML, override this
@@ -79,6 +80,8 @@ class TokenWidgetBase(forms.TextInput):
         :rtype:
             unicode
         """
+        if self.render_object:
+            return self.render_object(obj)
         return mark_for_escaping(obj)
 
     def render_objects(self, object_list):
@@ -97,7 +100,8 @@ class TokenWidgetBase(forms.TextInput):
         :rtype:
             [dict, ...]
         """
-        return [ dict(id=o.id, name=self.render_object(o)) for o in object_list ]
+        render = self.render_object or self.default_render_object
+        return [ dict(id=o.id, name=render(o)) for o in object_list ]
 
 
 class TokenWidget(TokenWidgetBase):
