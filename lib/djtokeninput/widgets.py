@@ -43,10 +43,23 @@ class TokenWidgetBase(forms.TextInput):
     search_url = None
     search_view = None
     render_object = None
+    default_on_create = unescaped("""
+    function(data){
+        var input = this.data("tokenInputObject");
+        var S = $(this).data("settings")
+        var C = S.jsonContainer;
+        data['csrfmiddlewaretoken'] = $('input[name="csrfmiddlewaretoken"]').val();
+        return $.post(S.url, data,
+            function(results){input.add((C?results[C]:results)[0]);}); }""")
 
     def __init__(self, attrs=None, **kwargs):
         super(TokenWidgetBase, self).__init__(attrs)
         self.settings = self._normalize(kwargs)
+        if "jsonContainer" not in self.settings:
+            self.settings["jsonContainer"] = "object_list"
+        if self.settings.get("allowCreation", False) \
+            and "onCreate" not in self.settings:
+            self.settings["onCreate"] = self.default_on_create
 
     @classmethod
     def _normalize(cls, settings):
@@ -101,7 +114,7 @@ class TokenWidgetBase(forms.TextInput):
             [dict, ...]
         """
         render = self.render_object or self.default_render_object
-        return [ dict(id=o.id, name=render(o)) for o in object_list ]
+        return [ dict(id=o.pk, name=render(o)) for o in object_list ]
 
 
 class TokenWidget(TokenWidgetBase):
@@ -111,7 +124,7 @@ class TokenWidget(TokenWidgetBase):
         self.settings['tokenLimit'] = 1
 
     def prepopulate(self, value):
-        if value is not None:
+        if value:
             object_list = self.choices.queryset.filter(pk=value)
         else:
             object_list = self.choices.queryset.none()

@@ -13,6 +13,7 @@ from django.views.generic.list import MultipleObjectMixin
 class JSONSearchView(MultipleObjectMixin, View):
 
     query_parameter = "q"
+    name_attr = "name"
     search_fields = ["^name"]
     min_query_length = 1
     queryset_limit_factor = 10
@@ -22,7 +23,7 @@ class JSONSearchView(MultipleObjectMixin, View):
     object_permission = None
     user_permission = None
 
-    def get_max_results(self):
+    def get_paginate_by(self, queryset):
         """
         Computes the upper bound for the size of the result set.
 
@@ -40,33 +41,14 @@ class JSONSearchView(MultipleObjectMixin, View):
         :rtype:
             int
         """
+        if not getattr(self, "paginate_by", 0):
+            return 0
         query_length = len(self.query.strip())
         max_results = self.min_query_length*query_length*self.queryset_limit_factor
         if self.queryset_limit_max:
             return min(max_results, self.queryset_limit_max)
         else:
             return max_results
-
-    def limit_queryset(self, qs):
-        """
-        Apply result size limits to the queryset. get_max_results() is used
-        to determine the maximum number of results to return. If
-        0/None/False, the entire result set is returned.
-
-        :param qs:
-            a queryset
-        :type qs:
-            QuerySet
-        :return:
-            limited queryset
-        :rtype:
-            QuerySet
-        """
-        M = self.get_max_results()
-        if M:
-            return qs[:M]
-        else:
-            return qs
 
     def filter_queryset(self, qs):
         """
@@ -132,9 +114,30 @@ class JSONSearchView(MultipleObjectMixin, View):
             # after this, but I think that's harmless.
             user = self.request.user
             object_list = ( obj.id for obj in qs if user.has_perm(perm, obj) )
-            M = self.get_max_results()
-            qs = self.get_queryset().filter(pk__in=islice(object_list, M))
+            qs = self.get_queryset().filter(pk__in=object_list)
         return qs
+
+    def get_context_data(self, **kwargs):
+        """
+        Get the context for this view.
+        """
+        queryset = kwargs.pop('object_list')
+        page_size = self.get_paginate_by(queryset)
+        context_object_name = self.get_context_object_name(queryset)
+        if page_size:
+            paginator, page, queryset, is_paginated = self.paginate_queryset(queryset, page_size)
+            context = {
+                'object_list': list(page),
+            }
+        else:
+            context = {
+                'object_list': queryset
+            }
+        context.update(kwargs)
+        if context_object_name is not None:
+            context[context_object_name] = context['object_list']
+            del context['object_list']
+        return context
 
     def get(self, request, *args, **kwargs):
         self.query = request.GET.get(self.query_parameter, "")
@@ -143,7 +146,6 @@ class JSONSearchView(MultipleObjectMixin, View):
         if not perm or request.user.has_perm(perm):
             qs = self.filter_queryset(qs)
             qs = self.check_object_perm(qs)
-            qs = self.limit_queryset(qs)
         else:
             qs = qs.none()
         self.object_list = qs
@@ -151,7 +153,8 @@ class JSONSearchView(MultipleObjectMixin, View):
         if not allow_empty and len(self.object_list) == 0:
             raise Http404(_(u"Empty list and '%(class_name)s.allow_empty' is False.")
                           % {'class_name': self.__class__.__name__})
-        context = self.get_context_data(object_list=self.object_list)
+        context = self.get_context_data(
+            object_list=self.render_objects(self.object_list))
         return self.render_to_response(context)
 
     def render_object(self, obj):
@@ -190,7 +193,8 @@ class JSONSearchView(MultipleObjectMixin, View):
         :rtype:
             [dict, ...]
         """
-        return [ dict(id=o.id, name=self.render_object(o)) for o in object_list ]
+        return [ dict(id=o.pk, name=self.render_object(o))
+                 for o in object_list ]
 
     def render_to_response(self, context):
         """
@@ -207,7 +211,37 @@ class JSONSearchView(MultipleObjectMixin, View):
             HttpResponse
         """
         return self.response_class(
-            json.dumps(self.render_objects(context['object_list'])),
+            json.dumps(context),
             content_type = "application/json",
         )
 
+
+class JSONSearchCreateView(JSONSearchView):
+
+    create_form = None
+
+    def post(self, request, *args, **kwargs):
+        form = self.create_form(request.POST)
+        qs = self.get_queryset()
+        if form.is_valid():
+            perm = self.user_add_permission
+            if not perm or request.user.has_perm(perm):
+                try:
+                    obj, created = qs.get_or_create(
+                        **{self.name_attr: form.cleaned_data[self.name_attr]}
+                    )
+                    qs = qs.filter(pk=obj.id)
+                except qs.model.DoesNotExist:
+                    qs = qs.none()
+            else:
+                qs = qs.none()
+        else:
+            qs = qs.none()
+        self.object_list = qs
+        allow_empty = self.get_allow_empty()
+        if not allow_empty and len(self.object_list) == 0:
+            raise Http404(_(u"Empty list and '%(class_name)s.allow_empty' is False.")
+                          % {'class_name': self.__class__.__name__})
+        context = self.get_context_data(
+            object_list=self.render_objects(self.object_list))
+        return self.render_to_response(context)
